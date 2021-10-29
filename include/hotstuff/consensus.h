@@ -31,6 +31,8 @@ namespace hotstuff {
 
 struct Proposal;
 struct Vote;
+struct Prepare;
+struct PrepareResp;
 struct Finality;
 
 /** Abstraction for HotStuff protocol state machine (without network implementation). */
@@ -167,8 +169,8 @@ class HotStuffCore {
     void set_vote_disabled(bool f) { vote_disabled = f; }
 };
 
-/** Abstraction for proposal messages. */
-struct Proposal: public Serializable {
+/** Abstraction for Prepare messages. */
+struct Prepare: public Serializable {
     ReplicaID proposer;
     /** block being proposed */
     block_t blk;
@@ -176,8 +178,8 @@ struct Proposal: public Serializable {
      * a pointer to the object of the class derived from HotStuffCore */
     HotStuffCore *hsc;
 
-    Proposal(): blk(nullptr), hsc(nullptr) {}
-    Proposal(ReplicaID proposer,
+    Prepare(): blk(nullptr), hsc(nullptr) {}
+    Prepare(ReplicaID proposer,
             const block_t &blk,
             HotStuffCore *hsc):
         proposer(proposer),
@@ -263,6 +265,38 @@ struct Vote: public Serializable {
           << "blk=" << get_hex10(blk_hash) << ">";
         return s;
     }
+};
+
+
+// TODO: add fields to include prepareResps from replicas
+struct Proposal: public Prepare {
+    Proposal(): Prepare() {}
+    Proposal(ReplicaID proposer,
+            const block_t &blk,
+            HotStuffCore *hsc):
+        Prepare(proposer, blk, hsc) {}
+}; 
+
+struct PrepareResp: public Vote {
+
+    // Containing the order in which the cmds should be executed
+    block_t blk;
+
+    void serialize(DataStream &s) const override {
+        s << voter << blk_hash << *cert << *blk;
+    }
+
+    void unserialize(DataStream &s) override {
+        assert(hsc != nullptr);
+        s >> voter >> blk_hash;
+        // TODO: add function for parsing certificate and block content
+        cert = hsc->parse_part_cert(s);
+        // TODO: we may not need the entire block
+        Block _blk;
+        _blk.unserialize(s, hsc);
+        blk = hsc->storage->add_blk(std::move(_blk), hsc->get_config());
+    }
+
 };
 
 struct Finality: public Serializable {

@@ -75,6 +75,20 @@ void MsgRespBlock::postponed_parse(HotStuffCore *hsc) {
     }
 }
 
+const opcode_t MsgPrepare::opcode;
+MsgPrepare::MsgPrepare(const Prepare &prepare) { serialized << prepare; }
+void MsgPrepare::postponed_parse(HotStuffCore *hsc) {
+    prep.hsc = hsc;
+    serialized >> prep;
+}
+
+const opcode_t MsgPrepareResp::opcode;
+MsgPrepareResp::MsgPrepareResp(const PrepareResp &prep_resp) { serialized << prep_resp; }
+void MsgPrepareResp::postponed_parse(HotStuffCore *hsc) {
+    prep_resp.hsc = hsc;
+    serialized >> prep_resp;
+}
+
 // TODO: improve this function
 void HotStuffBase::exec_command(uint256_t cmd_hash, commit_cb_t callback) {
     cmd_pending.enqueue(std::make_pair(cmd_hash, callback));

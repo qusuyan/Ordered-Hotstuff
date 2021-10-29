@@ -78,6 +78,24 @@ struct MsgRespBlock {
     void postponed_parse(HotStuffCore *hsc);
 };
 
+struct MsgPrepare {
+    static const opcode_t opcode = 0x4;
+    DataStream serialized;
+    Prepare prep;
+    MsgPrepare(const Prepare &);
+    MsgPrepare(DataStream &&s): serialized(std::move(s)) {}
+    void postponed_parse(HotStuffCore *hsc);
+};
+
+struct MsgPrepareResp {
+    static const opcode_t opcode = 0x5;
+    DataStream serialized;
+    PrepareResp prep_resp;
+    MsgPrepareResp(const PrepareResp &);
+    MsgPrepareResp(DataStream &&s): serialized(std::move(s)) {}
+    void postponed_parse(HotStuffCore *hsc);
+};
+
 using promise::promise_t;
 
 class HotStuffBase;
@@ -160,6 +178,7 @@ class HotStuffBase: public HotStuffCore {
     std::unordered_map<const uint256_t, commit_cb_t> decision_waiting;
     using cmd_queue_t = salticidae::MPSCQueueEventDriven<std::pair<uint256_t, commit_cb_t>>;
     cmd_queue_t cmd_pending;
+    std::vector<Proposal> proposal_queue;
     std::queue<uint256_t> cmd_pending_buffer;
 
     /* statistics */
