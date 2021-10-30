@@ -267,34 +267,80 @@ struct Vote: public Serializable {
     }
 };
 
-
-// TODO: add fields to include prepareResps from replicas
+// TODO: migrate serialize() and deserialize to the appropriate 
+//       place block or qc
 struct Proposal: public Prepare {
+
+    // salticidae::Bits rids;
+    // std::unordered_map<ReplicaID, std::vector<uint32_t>> orders;
+
     Proposal(): Prepare() {}
     Proposal(ReplicaID proposer,
             const block_t &blk,
             HotStuffCore *hsc):
         Prepare(proposer, blk, hsc) {}
+
+    // void serialize(DataStream &s) const override {
+    //     s << proposer << *blk << rids;
+    //     s << htole((uint32_t)orders.size());
+    //     for (size_t i = 0; i < rids.size(); i++) {
+    //         if (rids.get(i)) {
+    //             s << htole((uint32_t)(orders.at(i).size()));
+    //             for (const auto id : orders.at(i)) 
+    //                 s << id;
+    //         }
+    //     }
+    // }
+
+    // void unserialize(DataStream &s) override {
+    //     assert(hsc != nullptr);
+
+    //     s >> proposer;
+    //     Block _blk;
+    //     _blk.unserialize(s, hsc);
+    //     blk = hsc->storage->add_blk(std::move(_blk), hsc->get_config());
+
+    //     s >> rids;
+    //     uint32_t order_len;
+    //     for (size_t i = 0; i < rids.size(); i++) {
+    //         if (rids.get(i)) {
+    //             s >> order_len;
+    //             order_len = letoh(order_len);
+    //             std::vector<uint32_t> order;
+    //             order.resize(order_len);
+    //             for (auto& id : order) 
+    //                 s >> id;
+    //             orders.insert(std::make_pair(i, std::move(order)));
+    //         }
+    //     }
+    // }
 }; 
 
 struct PrepareResp: public Vote {
 
     // Containing the order in which the cmds should be executed
-    block_t blk;
+    // Most information regarding the batch is in the proposal's blk
+    std::vector<uint32_t> order;
 
     void serialize(DataStream &s) const override {
-        s << voter << blk_hash << *cert << *blk;
+        s << voter << blk_hash;
+        s << htole((uint32_t)order.size());
+        for (const auto id : order) 
+            s << id;
+        s << *cert;
     }
 
     void unserialize(DataStream &s) override {
         assert(hsc != nullptr);
+        uint32_t order_len;
         s >> voter >> blk_hash;
-        // TODO: add function for parsing certificate and block content
+        s >> order_len;
+        order_len = letoh(order_len);
+        order.resize(order_len);
+        for (auto &id: order) 
+            s >> id;
+        // TODO: add function for parsing certificate
         cert = hsc->parse_part_cert(s);
-        // TODO: we may not need the entire block
-        Block _blk;
-        _blk.unserialize(s, hsc);
-        blk = hsc->storage->add_blk(std::move(_blk), hsc->get_config());
     }
 
 };

@@ -228,7 +228,7 @@ void HotStuffCore::on_receive_vote(const Vote &vote) {
     assert(vote.cert);
     size_t qsize = blk->voted.size();
     if (qsize >= config.nmajority) return;
-    if (!blk->voted.insert(vote.voter).second)
+    if (!blk->voted.insert(std::make_pair(vote.voter, std::vector<uint32_t>())).second)
     {
         LOG_WARN("duplicate vote for %s from %d", get_hex10(vote.blk_hash).c_str(), vote.voter);
         return;
@@ -284,7 +284,7 @@ void HotStuffCore::add_replica(ReplicaID rid, const PeerId &peer_id,
                                 pubkey_bt &&pub_key) {
     config.add_replica(rid,
             ReplicaInfo(rid, peer_id, std::move(pub_key)));
-    b0->voted.insert(rid);
+    b0->voted.insert(std::make_pair(rid, std::vector<uint32_t>()));
 }
 
 promise_t HotStuffCore::async_qc_finish(const block_t &blk) {

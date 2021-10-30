@@ -38,7 +38,7 @@ bool QuorumCertSecp256k1::verify(const ReplicaConfig &config) {
             if (!sigs[i].verify(obj_hash,
                             static_cast<const PubKeySecp256k1 &>(config.get_pubkey(i)),
                             secp256k1_default_verify_ctx))
-            return false;
+                return false;
         }
     return true;
 }
