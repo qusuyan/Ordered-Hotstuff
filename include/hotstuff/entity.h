@@ -133,7 +133,7 @@ class Block {
     int8_t decision;
 
     // TODO: send the votes as well
-    std::unordered_map<ReplicaID, std::vector<uint32_t>> voted;
+    std::unordered_set<ReplicaID> voted;
 
     public:
     Block():
