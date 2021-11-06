@@ -15,32 +15,33 @@
  */
 
 #include <error.h>
-#include "salticidae/util.h"
-#include "salticidae/crypto.h"
-#include "hotstuff/type.h"
 
-using salticidae::Config;
+#include "hotstuff/type.h"
+#include "salticidae/crypto.h"
+#include "salticidae/util.h"
+
 using hotstuff::tls_pkey_bt;
 using hotstuff::tls_x509_bt;
+using salticidae::Config;
 
 int main(int argc, char **argv) {
-    Config config("hotstuff.conf");
-    tls_pkey_bt priv_key;
-    tls_x509_bt pub_key;
-    auto opt_n = Config::OptValInt::create(1);
-    config.add_opt("num", opt_n, Config::SET_VAL);
-    config.parse(argc, argv);
-    int n = opt_n->get();
-    if (n < 1)
-        error(1, 0, "n must be >0");
-    while (n--)
-    {
-        priv_key = new salticidae::PKey(salticidae::PKey::create_privkey_rsa());
-        pub_key = new salticidae::X509(salticidae::X509::create_self_signed_from_pubkey(*priv_key));
-        printf("crt:%s sec:%s cid:%s\n",
-                salticidae::get_hex(pub_key->get_der()).c_str(),
-                salticidae::get_hex(priv_key->get_privkey_der()).c_str(),
-                salticidae::get_hex(salticidae::get_hash(pub_key->get_der())).c_str());
-    }
-    return 0;
+  Config config("hotstuff.conf");
+  tls_pkey_bt priv_key;
+  tls_x509_bt pub_key;
+  auto opt_n = Config::OptValInt::create(1);
+  config.add_opt("num", opt_n, Config::SET_VAL);
+  config.parse(argc, argv);
+  int n = opt_n->get();
+  if (n < 1) error(1, 0, "n must be >0");
+  while (n--) {
+    priv_key = new salticidae::PKey(salticidae::PKey::create_privkey_rsa());
+    pub_key = new salticidae::X509(
+        salticidae::X509::create_self_signed_from_pubkey(*priv_key));
+    printf(
+        "crt:%s sec:%s cid:%s\n",
+        salticidae::get_hex(pub_key->get_der()).c_str(),
+        salticidae::get_hex(priv_key->get_privkey_der()).c_str(),
+        salticidae::get_hex(salticidae::get_hash(pub_key->get_der())).c_str());
+  }
+  return 0;
 }

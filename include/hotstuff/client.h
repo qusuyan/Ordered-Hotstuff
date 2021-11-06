@@ -17,41 +17,39 @@
 #ifndef _HOTSTUFF_CLIENT_H
 #define _HOTSTUFF_CLIENT_H
 
-#include "salticidae/msg.h"
-#include "hotstuff/type.h"
-#include "hotstuff/entity.h"
 #include "hotstuff/consensus.h"
+#include "hotstuff/entity.h"
+#include "hotstuff/type.h"
+#include "salticidae/msg.h"
 
 namespace hotstuff {
 
 struct MsgReqCmd {
-    static const opcode_t opcode = 0x4;
-    DataStream serialized;
-    command_t cmd;
-    MsgReqCmd(const Command &cmd) { serialized << cmd; }
-    MsgReqCmd(DataStream &&s): serialized(std::move(s)) {}
+  static const opcode_t opcode = 0x4;
+  DataStream serialized;
+  command_t cmd;
+  MsgReqCmd(const Command &cmd) { serialized << cmd; }
+  MsgReqCmd(DataStream &&s) : serialized(std::move(s)) {}
 };
 
 struct MsgRespCmd {
-    static const opcode_t opcode = 0x5;
-    DataStream serialized;
+  static const opcode_t opcode = 0x5;
+  DataStream serialized;
 #if HOTSTUFF_CMD_RESPSIZE > 0
-    uint8_t payload[HOTSTUFF_CMD_RESPSIZE];
+  uint8_t payload[HOTSTUFF_CMD_RESPSIZE];
 #endif
-    Finality fin;
-    MsgRespCmd(const Finality &fin) {
-        serialized << fin;
+  Finality fin;
+  MsgRespCmd(const Finality &fin) {
+    serialized << fin;
 #if HOTSTUFF_CMD_RESPSIZE > 0
-        serialized.put_data(payload, payload + sizeof(payload));
+    serialized.put_data(payload, payload + sizeof(payload));
 #endif
-    }
-    MsgRespCmd(DataStream &&s) {
-        s >> fin;
-    }
+  }
+  MsgRespCmd(DataStream &&s) { s >> fin; }
 };
 
 //#ifdef HOTSTUFF_AUTOCLI
-//struct MsgDemandCmd {
+// struct MsgDemandCmd {
 //    static const opcode_t opcode = 0x6;
 //    DataStream serialized;
 //    size_t ncmd;
@@ -60,46 +58,42 @@ struct MsgRespCmd {
 //};
 //#endif
 
-class CommandDummy: public Command {
-    uint32_t cid;
-    uint32_t n;
-    uint256_t hash;
+class CommandDummy : public Command {
+  uint32_t cid;
+  uint32_t n;
+  uint256_t hash;
 #if HOTSTUFF_CMD_REQSIZE > 0
-    uint8_t payload[HOTSTUFF_CMD_REQSIZE];
+  uint8_t payload[HOTSTUFF_CMD_REQSIZE];
 #endif
 
-    public:
-    CommandDummy() {}
-    ~CommandDummy() override {}
+ public:
+  CommandDummy() {}
+  ~CommandDummy() override {}
 
-    CommandDummy(uint32_t cid, uint32_t n):
-        cid(cid), n(n), hash(salticidae::get_hash(*this)) {}
+  CommandDummy(uint32_t cid, uint32_t n)
+      : cid(cid), n(n), hash(salticidae::get_hash(*this)) {}
 
-    void serialize(DataStream &s) const override {
-        s << cid << n;
+  void serialize(DataStream &s) const override {
+    s << cid << n;
 #if HOTSTUFF_CMD_REQSIZE > 0
-        s.put_data(payload, payload + sizeof(payload));
+    s.put_data(payload, payload + sizeof(payload));
 #endif
-    }
+  }
 
-    void unserialize(DataStream &s) override {
-        s >> cid >> n;
+  void unserialize(DataStream &s) override {
+    s >> cid >> n;
 #if HOTSTUFF_CMD_REQSIZE > 0
-        auto base = s.get_data_inplace(HOTSTUFF_CMD_REQSIZE);
-        memmove(payload, base, sizeof(payload));
+    auto base = s.get_data_inplace(HOTSTUFF_CMD_REQSIZE);
+    memmove(payload, base, sizeof(payload));
 #endif
-        hash = salticidae::get_hash(*this);
-    }
+    hash = salticidae::get_hash(*this);
+  }
 
-    const uint256_t &get_hash() const override {
-        return hash;
-    }
+  const uint256_t &get_hash() const override { return hash; }
 
-    bool verify() const override {
-        return true;
-    }
+  bool verify() const override { return true; }
 };
 
-}
+}  // namespace hotstuff
 
 #endif

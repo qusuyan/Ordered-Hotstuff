@@ -15,57 +15,52 @@
  */
 
 #include "hotstuff/entity.h"
+
 #include "hotstuff/hotstuff.h"
 
 namespace hotstuff {
 
 void Block::serialize(DataStream &s) const {
-    s << htole((uint32_t)parent_hashes.size());
-    for (const auto &hash: parent_hashes)
-        s << hash;
-    s << htole((uint32_t)cmds.size());
-    for (auto cmd: cmds)
-        s << cmd;
-    s << *qc << htole((uint32_t)extra.size()) << extra;
+  s << htole((uint32_t)parent_hashes.size());
+  for (const auto &hash : parent_hashes) s << hash;
+  s << htole((uint32_t)cmds.size());
+  for (auto cmd : cmds) s << cmd;
+  s << *qc << htole((uint32_t)extra.size()) << extra;
 }
 
 void Block::unserialize(DataStream &s, HotStuffCore *hsc) {
-    uint32_t n;
-    s >> n;
-    n = letoh(n);
-    parent_hashes.resize(n);
-    for (auto &hash: parent_hashes)
-        s >> hash;
-    s >> n;
-    n = letoh(n);
-    cmds.resize(n);
-    for (auto &cmd: cmds)
-        s >> cmd;
-//    for (auto &cmd: cmds)
-//        cmd = hsc->parse_cmd(s);
-    qc = hsc->parse_quorum_cert(s);
-    s >> n;
-    n = letoh(n);
-    if (n == 0)
-        extra.clear();
-    else
-    {
-        auto base = s.get_data_inplace(n);
-        extra = bytearray_t(base, base + n);
-    }
-    this->hash = salticidae::get_hash(*this);
+  uint32_t n;
+  s >> n;
+  n = letoh(n);
+  parent_hashes.resize(n);
+  for (auto &hash : parent_hashes) s >> hash;
+  s >> n;
+  n = letoh(n);
+  cmds.resize(n);
+  for (auto &cmd : cmds) s >> cmd;
+  //    for (auto &cmd: cmds)
+  //        cmd = hsc->parse_cmd(s);
+  qc = hsc->parse_quorum_cert(s);
+  s >> n;
+  n = letoh(n);
+  if (n == 0)
+    extra.clear();
+  else {
+    auto base = s.get_data_inplace(n);
+    extra = bytearray_t(base, base + n);
+  }
+  this->hash = salticidae::get_hash(*this);
 }
 
 bool Block::verify(const HotStuffCore *hsc) const {
-    if (qc->get_obj_hash() == hsc->get_genesis()->get_hash())
-        return true;
-    return qc->verify(hsc->get_config());
+  if (qc->get_obj_hash() == hsc->get_genesis()->get_hash()) return true;
+  return qc->verify(hsc->get_config());
 }
 
 promise_t Block::verify(const HotStuffCore *hsc, VeriPool &vpool) const {
-    if (qc->get_obj_hash() == hsc->get_genesis()->get_hash())
-        return promise_t([](promise_t &pm) { pm.resolve(true); });
-    return qc->verify(hsc->get_config(), vpool);
+  if (qc->get_obj_hash() == hsc->get_genesis()->get_hash())
+    return promise_t([](promise_t &pm) { pm.resolve(true); });
+  return qc->verify(hsc->get_config(), vpool);
 }
 
-}
+}  // namespace hotstuff
