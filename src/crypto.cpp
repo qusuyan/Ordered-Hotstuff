@@ -14,20 +14,26 @@
  * limitations under the License.
  */
 
-#include "hotstuff/entity.h"
 #include "hotstuff/crypto.h"
+#include "hotstuff/entity.h"
 
 namespace hotstuff {
 
 secp256k1_context_t secp256k1_default_sign_ctx = new Secp256k1Context(true);
 secp256k1_context_t secp256k1_default_verify_ctx = new Secp256k1Context(false);
 
+QuorumCertDummy::QuorumCertDummy(
+        const ReplicaConfig &config, const uint256_t &obj_hash):
+            QuorumCert(obj_hash, config.nreplicas) {}
+
+QuorumCertOrderDummy::QuorumCertOrderDummy(
+        const ReplicaConfig &config, const uint256_t &obj_hash):
+            QuorumCertOrder(obj_hash, config.nreplicas) {}
+
 QuorumCertSecp256k1::QuorumCertSecp256k1(
         const ReplicaConfig &config, const uint256_t &obj_hash):
-            QuorumCert(obj_hash), rids(config.nreplicas) {
-    rids.clear();
-}
-   
+            QuorumCert(obj_hash, config.nreplicas) {}
+
 bool QuorumCertSecp256k1::verify(const ReplicaConfig &config) {
     if (sigs.size() < config.nmajority) return false;
     for (size_t i = 0; i < rids.size(); i++)

@@ -44,11 +44,12 @@ class PrivKey: public Serializable {
 };
 
 using privkey_bt = BoxObj<PrivKey>;
+class ReplicaConfig;
 
 class PartCert: public Serializable, public Cloneable {
     public:
     uint256_t obj_hash;
-    PartCert(): obj_hash(0) {}
+    PartCert() {};
     PartCert(uint256_t obj_hash): obj_hash(obj_hash) {}
 
     virtual ~PartCert() = default;
@@ -59,13 +60,15 @@ class PartCert: public Serializable, public Cloneable {
     const uint256_t &get_obj_hash() const { return obj_hash; }
 };
 
-class ReplicaConfig;
-
 class QuorumCert: public Serializable, public Cloneable {
     public:
     uint256_t obj_hash;
-    QuorumCert(): obj_hash(0) {}
-    QuorumCert(uint256_t obj_hash): obj_hash(obj_hash) {};
+    salticidae::Bits rids;
+    QuorumCert() {};
+    QuorumCert(uint256_t obj_hash, size_t nreplicas): 
+        obj_hash(obj_hash), rids(nreplicas) {
+            rids.clear();
+    }
 
     virtual ~QuorumCert() = default;
     virtual void add_part(ReplicaID replica, const PartCert &pc) = 0;
@@ -84,6 +87,7 @@ template <class T>
 class PartCertOrder: public PartCert {
     public:
     T order;
+    PartCertOrder() {};
     PartCertOrder(uint256_t obj_hash, T order): 
         PartCert(obj_hash), order(order) {}
 };
@@ -92,8 +96,9 @@ template <class T>
 class QuorumCertOrder: public QuorumCert {
     public:
     std::unordered_map<ReplicaID, T> proposed_order;
-    QuorumCertOrder(uint256_t obj_hash):
-        QuorumCert(obj_hash), proposed_order() {}
+    QuorumCertOrder() {};
+    QuorumCertOrder(uint256_t obj_hash, size_t nreplicas):
+        QuorumCert(obj_hash, nreplicas), proposed_order() {}
 };
 
 class PubKeyDummy: public PubKey {
@@ -117,7 +122,7 @@ class PartCertDummy: public PartCert {
         PartCert(obj_hash) {}
 
     void serialize(DataStream &s) const override {
-        s << (uint32_t)0 << obj_hash;
+        s << (uint32_t)2 << obj_hash;
     }
 
     void unserialize(DataStream &s) override {
@@ -137,17 +142,16 @@ class PartCertDummy: public PartCert {
 
 class QuorumCertDummy: public QuorumCert {
     public:
-    QuorumCertDummy() {}
-    QuorumCertDummy(const ReplicaConfig &, const uint256_t &obj_hash):
-        QuorumCert(obj_hash) {}
+    QuorumCertDummy() {};
+    QuorumCertDummy(const ReplicaConfig &config, const uint256_t &obj_hash);
 
     void serialize(DataStream &s) const override {
-        s << (uint32_t)1 << obj_hash;
+        s << (uint32_t)3 << obj_hash << rids;
     }
 
     void unserialize(DataStream &s) override {
         uint32_t tmp;
-        s >> tmp >> obj_hash;
+        s >> tmp >> obj_hash >> rids;
     }
 
     QuorumCert *clone() override {
@@ -162,6 +166,88 @@ class QuorumCertDummy: public QuorumCert {
     }
 };
 
+class PartCertOrderDummy: public PartCertOrder<std::vector<uint32_t>> {
+
+    public:
+        PartCertOrderDummy() {}
+        PartCertOrderDummy(const uint256_t &obj_hash, const std::vector<uint32_t> order):
+            PartCertOrder(obj_hash, order) {}
+
+        void serialize(DataStream &s) const override {
+            s << (uint32_t)0 << obj_hash << order.size();
+            for (const auto &id : order) 
+                s << id;
+        }
+
+        void unserialize(DataStream &s) override {
+            uint32_t tmp;
+            s >> tmp >> obj_hash;
+            std::size_t size;
+            s >> size;
+            order.resize(size);
+            for (auto &id : order)
+                s >> id;
+        }
+
+        PartCertOrder<std::vector<uint32_t>> *clone() override {
+            return new PartCertOrderDummy(obj_hash, order);
+        }
+
+        bool verify(const PubKey &) override { return true; }
+        promise_t verify(const PubKey &, VeriPool &) override {
+            return promise_t([](promise_t &pm){ pm.resolve(true); });
+        }
+};
+
+class QuorumCertOrderDummy: public QuorumCertOrder<std::vector<uint32_t>> {
+    public:
+    QuorumCertOrderDummy() {};
+    QuorumCertOrderDummy(const ReplicaConfig &config, const uint256_t &obj_hash);
+
+    void serialize(DataStream &s) const override {
+        s << (uint32_t)1 << obj_hash << rids;
+        for (size_t i = 0; i < rids.size(); i++)
+            if (rids.get(i)) {
+                auto order = proposed_order.at(i);
+                s << order.size();
+                for (const auto &id : order)
+                    s << id;
+            }
+    }
+
+    void unserialize(DataStream &s) override {
+        uint32_t tmp;
+        s >> tmp >> obj_hash >> rids;
+        for (size_t i = 0; i < rids.size(); i++) 
+            if (rids.get(i)) {
+                std::size_t size;
+                s >> size;
+                std::vector<uint32_t> order;
+                order.resize(size);
+                for (auto &id : order) 
+                    s >> id;
+                proposed_order.insert(std::make_pair(i, std::move(order)));
+            }
+    }
+
+    QuorumCertOrderDummy *clone() override {
+        return new QuorumCertOrderDummy(*this);
+    }
+
+    void add_part(ReplicaID rid, const PartCert &pc) override {
+        if (pc.get_obj_hash() != obj_hash)
+            throw std::invalid_argument("PartCert does match the block hash");
+        proposed_order.insert(std::make_pair(
+            rid, static_cast<const PartCertOrderDummy &>(pc).order));
+        rids.set(rid);
+    }
+
+    void compute() override {}
+    bool verify(const ReplicaConfig &) override { return true; }
+    promise_t verify(const ReplicaConfig &, VeriPool &) override {
+        return promise_t([](promise_t &pm) { pm.resolve(true); });
+    }
+};
 
 class Secp256k1Context {
     secp256k1_context *ctx;
@@ -401,7 +487,6 @@ class PartCertSecp256k1: public SigSecp256k1, public PartCert {
 };
 
 class QuorumCertSecp256k1: public QuorumCert {
-    salticidae::Bits rids;
     std::unordered_map<ReplicaID, SigSecp256k1> sigs;
 
     public:
