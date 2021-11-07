@@ -19,10 +19,10 @@
 
 #include <openssl/rand.h>
 
-#include "hotstuff/task.h"
-#include "hotstuff/type.h"
-#include "salticidae/crypto.h"
 #include "secp256k1.h"
+#include "salticidae/crypto.h"
+#include "hotstuff/type.h"
+#include "hotstuff/task.h"
 
 namespace hotstuff {
 
