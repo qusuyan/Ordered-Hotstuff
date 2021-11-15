@@ -19,6 +19,7 @@
 #define _HOTSTUFF_CONSENSUS_H
 
 #include <cassert>
+#include <ctime>
 #include <set>
 #include <unordered_map>
 
@@ -258,50 +259,10 @@ struct Vote : public Serializable {
   }
 };
 
-// TODO: migrate serialize() and deserialize to the appropriate
-//       place block or qc
 struct Proposal : public Prepare {
-  // salticidae::Bits rids;
-  // std::unordered_map<ReplicaID, std::vector<uint32_t>> orders;
-
   Proposal() : Prepare() {}
   Proposal(ReplicaID proposer, const block_t &blk, HotStuffCore *hsc)
       : Prepare(proposer, blk, hsc) {}
-
-  // void serialize(DataStream &s) const override {
-  //     s << proposer << *blk << rids;
-  //     s << htole((uint32_t)orders.size());
-  //     for (size_t i = 0; i < rids.size(); i++) {
-  //         if (rids.get(i)) {
-  //             s << htole((uint32_t)(orders.at(i).size()));
-  //             for (const auto id : orders.at(i))
-  //                 s << id;
-  //         }
-  //     }
-  // }
-
-  // void unserialize(DataStream &s) override {
-  //     assert(hsc != nullptr);
-
-  //     s >> proposer;
-  //     Block _blk;
-  //     _blk.unserialize(s, hsc);
-  //     blk = hsc->storage->add_blk(std::move(_blk), hsc->get_config());
-
-  //     s >> rids;
-  //     uint32_t order_len;
-  //     for (size_t i = 0; i < rids.size(); i++) {
-  //         if (rids.get(i)) {
-  //             s >> order_len;
-  //             order_len = letoh(order_len);
-  //             std::vector<uint32_t> order;
-  //             order.resize(order_len);
-  //             for (auto& id : order)
-  //                 s >> id;
-  //             orders.insert(std::make_pair(i, std::move(order)));
-  //         }
-  //     }
-  // }
 };
 
 struct PrepareResp : public Vote {

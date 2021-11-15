@@ -113,7 +113,7 @@ class Block {
   friend HotStuffCore;
   std::vector<uint256_t> parent_hashes;
   std::vector<uint256_t> cmds;
-  quorum_cert_bt qc;
+  quorum_cert_bt qc;  // TODO: add ordering semantics
   bytearray_t extra;
 
   /* the following fields can be derived from above */

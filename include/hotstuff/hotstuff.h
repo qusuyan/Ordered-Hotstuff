@@ -175,7 +175,7 @@ class HotStuffBase : public HotStuffCore {
   std::unordered_map<const uint256_t, BlockFetchContext> blk_fetch_waiting;
   std::unordered_map<const uint256_t, BlockDeliveryContext>
       blk_delivery_waiting;
-  std::unordered_map<const uint256_t, commit_cb_t> decision_waiting;
+  std::unordered_map<const uint256_t, std::pair<time_t, commit_cb_t>> decision_waiting;
   using cmd_queue_t =
       salticidae::MPSCQueueEventDriven<std::pair<uint256_t, commit_cb_t>>;
   cmd_queue_t cmd_pending;
@@ -263,9 +263,64 @@ class HotStuffBase : public HotStuffCore {
 /** HotStuff protocol (templated by cryptographic implementation). */
 template <typename PrivKeyType = PrivKeyDummy,
           typename PubKeyType = PubKeyDummy,
+          typename PartCertType = PartCertOrderDummy,
+          typename QuorumCertType = QuorumCertOrderDummy>
+class HotStuff : public HotStuffBase {
+  using HotStuffBase::HotStuffBase;
+
+ protected:
+  part_cert_bt create_part_cert(const PrivKey &priv_key,
+                                const uint256_t &blk_hash) override {
+    HOTSTUFF_LOG_DEBUG("create part cert with priv=%s, blk_hash=%s",
+                       get_hex10(priv_key).c_str(),
+                       get_hex10(blk_hash).c_str());
+    auto blk = storage->find_blk(blk_hash);
+    return new PartCertType(static_cast<const PrivKeyType &>(priv_key),
+                            blk_hash);
+  }
+
+  part_cert_bt parse_part_cert(DataStream &s) override {
+    PartCert *pc = new PartCertType();
+    s >> *pc;
+    return pc;
+  }
+
+  quorum_cert_bt create_quorum_cert(const uint256_t &blk_hash) override {
+    return new QuorumCertType(get_config(), blk_hash);
+  }
+
+  quorum_cert_bt parse_quorum_cert(DataStream &s) override {
+    QuorumCert *qc = new QuorumCertType();
+    s >> *qc;
+    return qc;
+  }
+
+ public:
+  HotStuff(uint32_t blk_size, ReplicaID rid, const bytearray_t &raw_privkey,
+           NetAddr listen_addr, pacemaker_bt pmaker,
+           EventContext ec = EventContext(), size_t nworker = 4,
+           const Net::Config &netconfig = Net::Config())
+      : HotStuffBase(blk_size, rid, new PrivKeyType(raw_privkey), listen_addr,
+                     std::move(pmaker), ec, nworker, netconfig) {}
+
+  void start(const std::vector<std::tuple<NetAddr, bytearray_t, bytearray_t>>
+                 &replicas,
+             bool ec_loop = false) {
+    std::vector<std::tuple<NetAddr, pubkey_bt, uint256_t>> reps;
+    for (auto &r : replicas)
+      reps.push_back(std::make_tuple(std::get<0>(r),
+                                     new PubKeyType(std::get<1>(r)),
+                                     uint256_t(std::get<2>(r))));
+    HotStuffBase::start(std::move(reps), ec_loop);
+  }
+};
+
+// TODO: add ordering semantics
+template <typename PrivKeyType = PrivKeyDummy,
+          typename PubKeyType = PubKeyDummy,
           typename PartCertType = PartCertDummy,
           typename QuorumCertType = QuorumCertDummy>
-class HotStuff : public HotStuffBase {
+class OrderedHotStuff : public HotStuffBase {
   using HotStuffBase::HotStuffBase;
 
  protected:
@@ -295,7 +350,7 @@ class HotStuff : public HotStuffBase {
   }
 
  public:
-  HotStuff(uint32_t blk_size, ReplicaID rid, const bytearray_t &raw_privkey,
+  OrderedHotStuff(uint32_t blk_size, ReplicaID rid, const bytearray_t &raw_privkey,
            NetAddr listen_addr, pacemaker_bt pmaker,
            EventContext ec = EventContext(), size_t nworker = 4,
            const Net::Config &netconfig = Net::Config())

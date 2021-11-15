@@ -403,7 +403,7 @@ void HotStuffBase::do_decide(Finality &&fin) {
   state_machine_execute(fin);
   auto it = decision_waiting.find(fin.cmd_hash);
   if (it != decision_waiting.end()) {
-    it->second(std::move(fin));
+    it->second.second(std::move(fin));
     decision_waiting.erase(it);
   }
 }
@@ -444,7 +444,10 @@ void HotStuffBase::start(
       const auto &cmd_hash = e.first;
       auto it = decision_waiting.find(cmd_hash);
       if (it == decision_waiting.end())
-        it = decision_waiting.insert(std::make_pair(cmd_hash, e.second)).first;
+        it = decision_waiting
+                 .insert(std::make_pair(cmd_hash,
+                                        std::make_pair(time(NULL), e.second)))
+                 .first;
       else
         e.second(Finality(id, 0, 0, 0, cmd_hash, uint256_t()));
       if (proposer != get_id()) continue;
