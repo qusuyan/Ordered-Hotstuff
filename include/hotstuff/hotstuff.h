@@ -263,8 +263,8 @@ class HotStuffBase : public HotStuffCore {
 /** HotStuff protocol (templated by cryptographic implementation). */
 template <typename PrivKeyType = PrivKeyDummy,
           typename PubKeyType = PubKeyDummy,
-          typename PartCertType = PartCertOrderDummy,
-          typename QuorumCertType = QuorumCertOrderDummy>
+          typename PartCertType = PartCertDummy,
+          typename QuorumCertType = QuorumCertDummy>
 class HotStuff : public HotStuffBase {
   using HotStuffBase::HotStuffBase;
 
@@ -318,8 +318,8 @@ class HotStuff : public HotStuffBase {
 // TODO: add ordering semantics
 template <typename PrivKeyType = PrivKeyDummy,
           typename PubKeyType = PubKeyDummy,
-          typename PartCertType = PartCertDummy,
-          typename QuorumCertType = QuorumCertDummy>
+          typename PartCertType = PartCertOrderDummy,
+          typename QuorumCertType = QuorumCertOrderDummy>
 class OrderedHotStuff : public HotStuffBase {
   using HotStuffBase::HotStuffBase;
 
