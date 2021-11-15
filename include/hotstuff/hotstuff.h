@@ -160,6 +160,8 @@ class HotStuffBase : public HotStuffCore {
   salticidae::ThreadCall tcall;
   VeriPool vpool;
   std::vector<PeerId> peers;
+  std::unordered_map<const uint256_t, std::pair<time_t, commit_cb_t>>
+      decision_waiting;
 
  private:
   /** whether libevent handle is owned by itself */
@@ -175,7 +177,6 @@ class HotStuffBase : public HotStuffCore {
   std::unordered_map<const uint256_t, BlockFetchContext> blk_fetch_waiting;
   std::unordered_map<const uint256_t, BlockDeliveryContext>
       blk_delivery_waiting;
-  std::unordered_map<const uint256_t, std::pair<time_t, commit_cb_t>> decision_waiting;
   using cmd_queue_t =
       salticidae::MPSCQueueEventDriven<std::pair<uint256_t, commit_cb_t>>;
   cmd_queue_t cmd_pending;
@@ -329,8 +330,26 @@ class OrderedHotStuff : public HotStuffBase {
     HOTSTUFF_LOG_DEBUG("create part cert with priv=%s, blk_hash=%s",
                        get_hex10(priv_key).c_str(),
                        get_hex10(blk_hash).c_str());
-    return new PartCertType(static_cast<const PrivKeyType &>(priv_key),
-                            blk_hash);
+    auto blk = storage->find_blk(blk_hash);
+    auto cmds = blk->get_cmds();
+    std::vector<std::pair<uint32_t, time_t>> timestamps;
+    uint32_t count = 0;
+    for (const auto &cmd : cmds) {
+      auto it = decision_waiting.find(cmd);
+      if (it != decision_waiting.end())
+        timestamps.push_back(std::make_pair(count, it->second.first));
+      count++;
+    }
+    std::sort(timestamps.begin(), timestamps.end(),
+              [](const auto &t1, const auto &t2) -> bool {
+                return std::difftime(t1.second, t2.second) < 0;
+              });
+    std::vector<uint32_t> order;
+    order.resize(timestamps.size());
+    std::transform(timestamps.begin(), timestamps.end(), order.begin(),
+                   [](auto &pair) { return pair.first; });
+    std::vector<uint32_t> test;
+    return new PartCertType(blk_hash, std::move(order));
   }
 
   part_cert_bt parse_part_cert(DataStream &s) override {
@@ -350,11 +369,12 @@ class OrderedHotStuff : public HotStuffBase {
   }
 
  public:
-  OrderedHotStuff(uint32_t blk_size, ReplicaID rid, const bytearray_t &raw_privkey,
-           NetAddr listen_addr, pacemaker_bt pmaker,
-           EventContext ec = EventContext(), size_t nworker = 4,
-           const Net::Config &netconfig = Net::Config())
-      : HotStuffBase(blk_size, rid, new PrivKeyType(raw_privkey), listen_addr,
+  OrderedHotStuff(uint32_t blk_size, ReplicaID rid,
+                  const bytearray_t &raw_privkey, NetAddr listen_addr,
+                  pacemaker_bt pmaker, EventContext ec = EventContext(),
+                  size_t nworker = 4,
+                  const Net::Config &netconfig = Net::Config())
+      : HotStuffBase(blk_size, rid, new PrivKeyType(), listen_addr,
                      std::move(pmaker), ec, nworker, netconfig) {}
 
   void start(const std::vector<std::tuple<NetAddr, bytearray_t, bytearray_t>>
@@ -362,8 +382,7 @@ class OrderedHotStuff : public HotStuffBase {
              bool ec_loop = false) {
     std::vector<std::tuple<NetAddr, pubkey_bt, uint256_t>> reps;
     for (auto &r : replicas)
-      reps.push_back(std::make_tuple(std::get<0>(r),
-                                     new PubKeyType(std::get<1>(r)),
+      reps.push_back(std::make_tuple(std::get<0>(r), new PubKeyType(),
                                      uint256_t(std::get<2>(r))));
     HotStuffBase::start(std::move(reps), ec_loop);
   }
