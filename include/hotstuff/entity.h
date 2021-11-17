@@ -126,6 +126,7 @@ class Block {
   int8_t decision;
 
   // TODO: send the votes as well
+  ReplicaID proposer_id;
   std::unordered_set<ReplicaID> voted;
 
  public:
@@ -135,7 +136,8 @@ class Block {
         self_qc(nullptr),
         height(0),
         delivered(false),
-        decision(0) {}
+        decision(0),
+        proposer_id(-1) {}
 
   Block(bool delivered, int8_t decision)
       : qc(new QuorumCertDummy()),
@@ -144,11 +146,13 @@ class Block {
         self_qc(nullptr),
         height(0),
         delivered(delivered),
-        decision(decision) {}
+        decision(decision),
+        proposer_id(-1) {}
 
   Block(const std::vector<block_t> &parents, const std::vector<uint256_t> &cmds,
         quorum_cert_bt &&qc, bytearray_t &&extra, uint32_t height,
-        const block_t &qc_ref, quorum_cert_bt &&self_qc, int8_t decision = 0)
+        const block_t &qc_ref, quorum_cert_bt &&self_qc, ReplicaID proposer_id,
+        int8_t decision = 0)
       : parent_hashes(get_hashes(parents)),
         cmds(cmds),
         qc(std::move(qc)),
@@ -159,7 +163,8 @@ class Block {
         self_qc(std::move(self_qc)),
         height(height),
         delivered(0),
-        decision(decision) {}
+        decision(decision),
+        proposer_id(proposer_id) {}
 
   void serialize(DataStream &s) const;
 
@@ -190,6 +195,9 @@ class Block {
   const block_t &get_qc_ref() const { return qc_ref; }
 
   const bytearray_t &get_extra() const { return extra; }
+
+  void set_proposer(const ReplicaID rid) { proposer_id = rid; }
+  ReplicaID get_proposer() const { return proposer_id; }
 
   operator std::string() const {
     DataStream s;

@@ -320,6 +320,10 @@ HotStuffApp::HotStuffApp(uint32_t blk_size,
         std::pair<Finality, NetAddr> p;
         while (q.try_dequeue(p))
         {
+#ifndef HOTSTUFF_ENABLE_BENCHMARK
+            HOTSTUFF_LOG_INFO("send new cmd %.10s",
+                            get_hex(p.first.cmd_hash).c_str());
+#endif
             try {
                 cn.send_msg(MsgRespCmd(std::move(p.first)), p.second);
             } catch (std::exception &err) {

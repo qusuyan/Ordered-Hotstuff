@@ -152,7 +152,7 @@ block_t HotStuffCore::on_propose(const std::vector<uint256_t> &cmds,
   /* create the new block */
   block_t bnew = storage->add_blk(
       new Block(parents, cmds, hqc.second->clone(), std::move(extra),
-                parents[0]->height + 1, hqc.first, nullptr));
+                parents[0]->height + 1, hqc.first, nullptr, get_id()));
   const uint256_t bnew_hash = bnew->get_hash();
   bnew->self_qc = create_quorum_cert(bnew_hash);
   on_deliver_blk(bnew);

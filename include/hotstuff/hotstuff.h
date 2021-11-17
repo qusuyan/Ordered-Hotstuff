@@ -160,8 +160,6 @@ class HotStuffBase : public HotStuffCore {
   salticidae::ThreadCall tcall;
   VeriPool vpool;
   std::vector<PeerId> peers;
-  std::unordered_map<const uint256_t, std::pair<time_t, commit_cb_t>>
-      decision_waiting;
 
  private:
   /** whether libevent handle is owned by itself */
@@ -177,6 +175,8 @@ class HotStuffBase : public HotStuffCore {
   std::unordered_map<const uint256_t, BlockFetchContext> blk_fetch_waiting;
   std::unordered_map<const uint256_t, BlockDeliveryContext>
       blk_delivery_waiting;
+  std::unordered_map<const uint256_t, std::pair<time_t, commit_cb_t>>
+      decision_waiting;
   using cmd_queue_t =
       salticidae::MPSCQueueEventDriven<std::pair<uint256_t, commit_cb_t>>;
   cmd_queue_t cmd_pending;
@@ -330,25 +330,32 @@ class OrderedHotStuff : public HotStuffBase {
     HOTSTUFF_LOG_DEBUG("create part cert with priv=%s, blk_hash=%s",
                        get_hex10(priv_key).c_str(),
                        get_hex10(blk_hash).c_str());
+    std::vector<uint32_t> order;
     auto blk = storage->find_blk(blk_hash);
     auto cmds = blk->get_cmds();
-    std::vector<std::pair<uint32_t, time_t>> timestamps;
-    uint32_t count = 0;
-    for (const auto &cmd : cmds) {
-      auto it = decision_waiting.find(cmd);
-      if (it != decision_waiting.end())
-        timestamps.push_back(std::make_pair(count, it->second.first));
-      count++;
+    if (blk->get_proposer() == get_id()) {
+      // short path: if the block is self proposed we agree with its order.
+      //    this does not affect correctness since cmds are in the same order as
+      //    the decision_waiting queue.
+      for (uint32_t i = 0; i < cmds.size(); i++) order.push_back(i);
+    } else {
+      auto decision_waiting = get_decision_waiting();
+      std::vector<std::pair<uint32_t, time_t>> timestamps;
+      uint32_t count = 0;
+      for (const auto &cmd : cmds) {
+        auto it = decision_waiting.find(cmd);
+        if (it != decision_waiting.end())
+          timestamps.push_back(std::make_pair(count, it->second.first));
+        count++;
+      }
+      std::sort(timestamps.begin(), timestamps.end(),
+                [](const auto &t1, const auto &t2) -> bool {
+                  return std::difftime(t1.second, t2.second) < 0;
+                });
+      order.resize(timestamps.size());
+      std::transform(timestamps.begin(), timestamps.end(), order.begin(),
+                     [](auto &pair) { return pair.first; });
     }
-    std::sort(timestamps.begin(), timestamps.end(),
-              [](const auto &t1, const auto &t2) -> bool {
-                return std::difftime(t1.second, t2.second) < 0;
-              });
-    std::vector<uint32_t> order;
-    order.resize(timestamps.size());
-    std::transform(timestamps.begin(), timestamps.end(), order.begin(),
-                   [](auto &pair) { return pair.first; });
-    std::vector<uint32_t> test;
     return new PartCertType(blk_hash, std::move(order));
   }
 

@@ -78,7 +78,7 @@ bool try_send(bool check = true) {
         MsgReqCmd msg(*cmd);
         for (auto &p: conns) mn->send_msg(msg, p.second);
 #ifndef HOTSTUFF_ENABLE_BENCHMARK
-        HOTSTUFF_LOG_INFO("send new cmd %.10s",
+        HOTSTUFF_LOG_INFO("send new resp %.10s",
                             get_hex(cmd->get_hash()).c_str());
 #endif
         waiting.insert(std::make_pair(

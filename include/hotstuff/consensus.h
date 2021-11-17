@@ -190,6 +190,7 @@ struct Prepare : public Serializable {
     s >> proposer;
     Block _blk;
     _blk.unserialize(s, hsc);
+    _blk.set_proposer(proposer);
     blk = hsc->storage->add_blk(std::move(_blk), hsc->get_config());
   }
 
