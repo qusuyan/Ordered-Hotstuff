@@ -399,6 +399,7 @@ void HotStuffBase::do_consensus(const block_t &blk) {
 }
 
 void HotStuffBase::do_decide(Finality &&fin) {
+  HOTSTUFF_LOG_PROTO("Deciding command %s", get_hex(fin.cmd_hash).c_str());
   part_decided++;
   state_machine_execute(fin);
   auto it = decision_waiting.find(fin.cmd_hash);

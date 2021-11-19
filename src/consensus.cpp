@@ -83,6 +83,7 @@ bool HotStuffCore::on_deliver_blk(const block_t &blk) {
 void HotStuffCore::update_hqc(const block_t &_hqc, const quorum_cert_bt &qc) {
   if (_hqc->height > hqc.first->height) {
     hqc = std::make_pair(_hqc, qc->clone());
+    if (_hqc != nullptr && qc != nullptr) _hqc->set_self_qc(qc);
     on_hqc_update();
   }
 }
@@ -138,8 +139,24 @@ void HotStuffCore::update(const block_t &nblk) {
     blk->decision = 1;
     do_consensus(blk);
     LOG_PROTO("commit %s", std::string(*blk).c_str());
-    for (size_t i = 0; i < blk->cmds.size(); i++)
-      do_decide(Finality(id, 1, i, blk->height, blk->cmds[i], blk->get_hash()));
+    auto cmds = blk->get_cmds();
+    std::vector<uint32_t> cmd_order = blk->get_cmd_order();
+    std::vector<bool> done(cmds.size(), false);
+    std::vector<uint256_t> ordered_cmds;
+
+    for (auto i : cmd_order) {
+      done[i] = true;
+      ordered_cmds.push_back(cmds[i]);
+    }
+
+    LOG_INFO("total cmds: %d; ordered_cmds: %d", cmds.size(), ordered_cmds.size());
+
+    for (size_t i = 0; i < cmds.size(); i++)
+      if (!done[i]) ordered_cmds.push_back(cmds[i]);
+
+    for (size_t i = 0; i < ordered_cmds.size(); i++)
+      do_decide(
+          Finality(id, 1, i, blk->height, ordered_cmds[i], blk->get_hash()));
   }
   b_exec = blk;
 }

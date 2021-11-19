@@ -305,8 +305,9 @@ HotStuffApp::HotStuffApp(uint32_t blk_size, double stat_period,
     std::pair<Finality, NetAddr> p;
     while (q.try_dequeue(p)) {
 #ifndef HOTSTUFF_ENABLE_BENCHMARK
-      HOTSTUFF_LOG_INFO("send new cmd %.10s",
-                        get_hex(p.first.cmd_hash).c_str());
+      HOTSTUFF_LOG_INFO("send new cmd %.10s to %d:%d",
+                        get_hex(p.first.cmd_hash).c_str(), p.second.ip,
+                        p.second.port);
 #endif
       try {
         cn.send_msg(MsgRespCmd(std::move(p.first)), p.second);
@@ -329,7 +330,8 @@ void HotStuffApp::client_request_cmd_handler(MsgReqCmd &&msg,
   const NetAddr addr = conn->get_addr();
   auto cmd = parse_cmd(msg.serialized);
   const auto &cmd_hash = cmd->get_hash();
-  HOTSTUFF_LOG_DEBUG("processing %s", std::string(*cmd).c_str());
+  HOTSTUFF_LOG_INFO("processing %s from %d:%d", std::string(*cmd).c_str(),
+                     addr.ip, addr.port);
   exec_command(cmd_hash, [this, addr](Finality fin) {
     resp_queue.enqueue(std::make_pair(fin, addr));
   });

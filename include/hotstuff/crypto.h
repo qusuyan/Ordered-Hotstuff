@@ -69,6 +69,7 @@ class QuorumCert : public Serializable, public Cloneable {
       : obj_hash(obj_hash), rids(nreplicas) {
     rids.clear();
   }
+  virtual bool is_ordered() const { return false; }
 
   virtual ~QuorumCert() = default;
   virtual void add_part(ReplicaID replica, const PartCert &pc) = 0;
@@ -76,6 +77,10 @@ class QuorumCert : public Serializable, public Cloneable {
   virtual promise_t verify(const ReplicaConfig &config, VeriPool &vpool) = 0;
   virtual bool verify(const ReplicaConfig &config) = 0;
   virtual QuorumCert *clone() override = 0;
+  virtual const std::vector<uint32_t> &get_order() const {
+    auto ret = new std::vector<uint32_t>();
+    return *ret;
+  }
 
   const uint256_t &get_obj_hash() const { return obj_hash; }
 };
@@ -99,6 +104,11 @@ class QuorumCertOrder : public QuorumCert {
   QuorumCertOrder(){};
   QuorumCertOrder(uint256_t obj_hash, size_t nreplicas)
       : QuorumCert(obj_hash, nreplicas), proposed_order() {}
+  bool is_ordered() const override { return true; }
+  virtual const std::vector<uint32_t> &get_order() const override {
+    auto ret = new std::vector<uint32_t>();
+    return *ret;
+  }
 };
 
 class PubKeyDummy : public PubKey {
@@ -193,6 +203,10 @@ class QuorumCertOrderDummy : public QuorumCertOrder<std::vector<uint32_t>> {
  public:
   QuorumCertOrderDummy(){};
   QuorumCertOrderDummy(const ReplicaConfig &config, const uint256_t &obj_hash);
+
+  const std::vector<uint32_t> &get_order() const override {
+    return proposed_order.at(0);
+  }
 
   void serialize(DataStream &s) const override {
     s << (uint32_t)1 << obj_hash << rids;
