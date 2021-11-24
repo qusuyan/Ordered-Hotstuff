@@ -52,6 +52,11 @@ void Block::unserialize(DataStream &s, HotStuffCore *hsc) {
   this->hash = salticidae::get_hash(*this);
 }
 
+const std::vector<uint32_t> Block::get_cmd_order(
+    const ReplicaConfig &config) const {
+  return self_qc->get_order(config, cmds.size());
+}
+
 bool Block::verify(const HotStuffCore *hsc) const {
   if (qc->get_obj_hash() == hsc->get_genesis()->get_hash()) return true;
   return qc->verify(hsc->get_config());

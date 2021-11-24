@@ -31,6 +31,60 @@ QuorumCertOrderDummy::QuorumCertOrderDummy(const ReplicaConfig &config,
                                            const uint256_t &obj_hash)
     : QuorumCertOrder(obj_hash, config.nreplicas) {}
 
+const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
+    const ReplicaConfig &config, size_t cmd_count) const {
+  size_t edge_votes[cmd_count][cmd_count] = {};
+  size_t vote_threshold = config.nreplicas - config.nmajority + 1;  // f + 1
+
+  // create partial ordering graph
+  for (const auto &proposed : proposed_order) {
+    auto &ordering = proposed.second;
+    for (auto it = ordering.begin(); it < ordering.end(); it++)
+      for (auto it2 = it + 1; it2 < ordering.end(); it2++)
+        edge_votes[*it][*it2]++;
+  }
+
+  bool edges[cmd_count][cmd_count] = {};
+  for (size_t i = 0; i < cmd_count; i++) {
+    for (size_t j = 0; j < cmd_count; j++) {
+      if (edge_votes[i][j] >= vote_threshold &&
+          (edge_votes[i][j] > edge_votes[j][i] ||
+           (edge_votes[i][j] == edge_votes[j][i] && i < j)))
+        edges[i][j] = true;
+    }
+  }
+
+  // find a topological ordering in the edge_votes graph
+  std::vector<uint32_t> ret;
+  bool enqueued[cmd_count] = {true};
+  bool dequeued[cmd_count] = {};
+  std::vector<uint32_t> to_visit = {0};
+  while (to_visit.size() > 0) {
+    // find a node with in-degree 0, potentially problemmatic if cycle exists
+    auto it = to_visit.begin();
+    for (; it < to_visit.end(); it++) {
+      for (size_t i = 0; i < cmd_count; i++) {
+        if (!dequeued[i] && edges[i][*it]) goto loop;
+      }
+      break;
+    loop:;
+    }
+
+    auto elem = *it;
+    to_visit.erase(it);
+    for (size_t i = 0; i < cmd_count; i++) {
+      if (!enqueued[i] && edges[elem][i]) {
+        enqueued[i] = true;
+        to_visit.push_back(i);
+      }
+    }
+    ret.push_back(elem);
+    dequeued[elem] = true;
+  }
+
+  return ret;
+}
+
 QuorumCertSecp256k1::QuorumCertSecp256k1(const ReplicaConfig &config,
                                          const uint256_t &obj_hash)
     : QuorumCert(obj_hash, config.nreplicas) {}

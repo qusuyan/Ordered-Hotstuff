@@ -77,9 +77,8 @@ class QuorumCert : public Serializable, public Cloneable {
   virtual promise_t verify(const ReplicaConfig &config, VeriPool &vpool) = 0;
   virtual bool verify(const ReplicaConfig &config) = 0;
   virtual QuorumCert *clone() override = 0;
-  virtual const std::vector<uint32_t> &get_order() const {
-    auto ret = new std::vector<uint32_t>();
-    return *ret;
+  virtual const std::vector<uint32_t> get_order(const ReplicaConfig &config, size_t cmd_count) const {
+    throw "This QC type does not have ordering semantics";
   }
 
   const uint256_t &get_obj_hash() const { return obj_hash; }
@@ -105,9 +104,8 @@ class QuorumCertOrder : public QuorumCert {
   QuorumCertOrder(uint256_t obj_hash, size_t nreplicas)
       : QuorumCert(obj_hash, nreplicas), proposed_order() {}
   bool is_ordered() const override { return true; }
-  virtual const std::vector<uint32_t> &get_order() const override {
-    auto ret = new std::vector<uint32_t>();
-    return *ret;
+  virtual const std::vector<uint32_t> get_order(const ReplicaConfig &config, size_t cmd_count) const override {
+    return std::vector<uint32_t>();
   }
 };
 
@@ -204,9 +202,7 @@ class QuorumCertOrderDummy : public QuorumCertOrder<std::vector<uint32_t>> {
   QuorumCertOrderDummy(){};
   QuorumCertOrderDummy(const ReplicaConfig &config, const uint256_t &obj_hash);
 
-  const std::vector<uint32_t> &get_order() const override {
-    return proposed_order.at(0);
-  }
+  const std::vector<uint32_t> get_order(const ReplicaConfig &config, size_t cmd_count) const override;
 
   void serialize(DataStream &s) const override {
     s << (uint32_t)1 << obj_hash << rids;

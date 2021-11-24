@@ -171,9 +171,7 @@ class Block {
   void unserialize(DataStream &s, HotStuffCore *hsc);
 
   const std::vector<uint256_t> &get_cmds() const { return cmds; }
-  const std::vector<uint32_t> get_cmd_order() const {
-    return self_qc->get_order();
-  }
+  const std::vector<uint32_t> get_cmd_order(const ReplicaConfig &config) const;
 
   const std::vector<block_t> &get_parents() const { return parents; }
 
@@ -202,9 +200,7 @@ class Block {
   void set_proposer(const ReplicaID rid) { proposer_id = rid; }
   ReplicaID get_proposer() const { return proposer_id; }
 
-  void set_self_qc(const quorum_cert_bt &qc) {
-    self_qc = qc->clone();
-  }
+  void set_self_qc(const quorum_cert_bt &qc) { self_qc = qc->clone(); }
 
   operator std::string() const {
     DataStream s;

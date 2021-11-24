@@ -140,7 +140,7 @@ void HotStuffCore::update(const block_t &nblk) {
     do_consensus(blk);
     LOG_PROTO("commit %s", std::string(*blk).c_str());
     auto cmds = blk->get_cmds();
-    std::vector<uint32_t> cmd_order = blk->get_cmd_order();
+    std::vector<uint32_t> cmd_order = blk->get_cmd_order(config);
     std::vector<bool> done(cmds.size(), false);
     std::vector<uint256_t> ordered_cmds;
 
