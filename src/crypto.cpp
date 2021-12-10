@@ -33,6 +33,10 @@ QuorumCertOrderDummy::QuorumCertOrderDummy(const ReplicaConfig &config,
 
 const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
     const ReplicaConfig &config, size_t cmd_count) const {
+  std::vector<uint32_t> ret;
+  if (cmd_count == 0)
+    return ret;
+    
   size_t edge_votes[cmd_count][cmd_count] = {};
   size_t vote_threshold = config.nreplicas - config.nmajority + 1;  // f + 1
 
@@ -55,7 +59,6 @@ const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
   }
 
   // find a topological ordering in the edge_votes graph
-  std::vector<uint32_t> ret;
   bool enqueued[cmd_count] = {true};
   bool dequeued[cmd_count] = {};
   std::vector<uint32_t> to_visit = {0};
