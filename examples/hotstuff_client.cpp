@@ -19,8 +19,11 @@
 #include <sys/time.h>
 
 #include <cassert>
+#include <ctime>
+#include <iostream>
 #include <memory>
 #include <random>
+#include <thread>
 
 #include "hotstuff/client.h"
 #include "hotstuff/type.h"
@@ -66,6 +69,21 @@ std::vector<NetAddr> replicas;
 std::vector<std::pair<struct timeval, double>> elapsed;
 std::unique_ptr<Net> mn;
 
+void report() {
+  time_t start, curr;
+  double diff_seconds;
+  HOTSTUFF_LOG_INFO("Timer Start");
+  time(&start);
+  while (1) {
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    time(&curr);
+    diff_seconds = difftime(curr, start);
+    HOTSTUFF_LOG_INFO(
+        "Running for %f seconds, resolved %d cmds; Throughput: %f",
+        diff_seconds, cnt, cnt / diff_seconds);
+  }
+}
+
 void connect_all() {
   for (size_t i = 0; i < replicas.size(); i++)
     conns.insert(std::make_pair(i, mn->connect_sync(replicas[i])));
@@ -77,7 +95,7 @@ bool try_send(bool check = true) {
     MsgReqCmd msg(*cmd);
     for (auto &p : conns) mn->send_msg(msg, p.second);
 #ifndef HOTSTUFF_ENABLE_BENCHMARK
-    HOTSTUFF_LOG_INFO("send new cmd %.10s", get_hex(cmd->get_hash()).c_str());
+    HOTSTUFF_LOG_DEBUG("send new cmd %.10s", get_hex(cmd->get_hash()).c_str());
 #endif
     waiting.insert(std::make_pair(cmd->get_hash(), Request(cmd)));
     if (max_iter_num > 0) max_iter_num--;
@@ -96,7 +114,7 @@ void client_resp_cmd_handler(MsgRespCmd &&msg, const Net::conn_t &) {
   et.stop();
   if (++it->second.confirmed <= nfaulty) return;  // wait for f + 1 ack
 #ifndef HOTSTUFF_ENABLE_BENCHMARK
-  HOTSTUFF_LOG_INFO("got %s, wall: %.3f, cpu: %.3f", std::string(fin).c_str(),
+  HOTSTUFF_LOG_DEBUG("got %s, wall: %.3f, cpu: %.3f", std::string(fin).c_str(),
                     et.elapsed_sec, et.cpu_elapsed_sec);
 #else
   struct timeval tv;
@@ -165,6 +183,7 @@ int main(int argc, char **argv) {
   nfaulty = (replicas.size() - 1) / 3;
   HOTSTUFF_LOG_INFO("nfaulty = %zu", nfaulty);
   connect_all();
+  std::thread timer(report);
   while (try_send())
     ;
   ec.dispatch();
