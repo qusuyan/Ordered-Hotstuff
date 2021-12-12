@@ -28,7 +28,7 @@ find_package(Threads REQUIRED)
 include(ExternalProject)
 include_directories(secp256k1/include)
 ExternalProject_Add(libsecp256k1
-    SOURCE_DIR secp256k1
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1
     CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1/autogen.sh
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/secp256k1/configure --disable-shared --with-pic --with-bignum=no --enable-module-recovery
     BUILD_COMMAND make
