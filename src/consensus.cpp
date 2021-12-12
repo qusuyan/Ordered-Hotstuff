@@ -83,7 +83,7 @@ bool HotStuffCore::on_deliver_blk(const block_t &blk) {
 void HotStuffCore::update_hqc(const block_t &_hqc, const quorum_cert_bt &qc) {
   if (_hqc->height > hqc.first->height) {
     hqc = std::make_pair(_hqc, qc->clone());
-    if (_hqc != nullptr && qc != nullptr) _hqc->set_self_qc(qc);
+    _hqc->set_self_qc(qc);
     on_hqc_update();
   }
 }
