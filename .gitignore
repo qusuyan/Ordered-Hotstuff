@@ -24,3 +24,5 @@ include/hotstuff/config.h
 core
 .vscode/
 log*
+/.idea
+/cmake-build-*
