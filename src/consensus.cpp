@@ -129,7 +129,7 @@ void HotStuffCore::update(const block_t &nblk) {
   block_t b;
   for (b = blk; b->height > b_exec->height;
        b = b->parents[0]) { /* TODO: also commit the uncles/aunts */
-    if (b->self_qc != nullptr) commit_queue.push_back(b);
+    if (b->self_qc.get() != nullptr) commit_queue.push_back(b);
   }
   if (b != b_exec)
     throw std::runtime_error("safety breached :( " + std::string(*blk) + " " +
