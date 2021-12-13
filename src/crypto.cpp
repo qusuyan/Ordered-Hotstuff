@@ -61,20 +61,41 @@ const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
   // find a topological ordering in the edge_votes graph
   bool enqueued[cmd_count] = {true};
   bool dequeued[cmd_count] = {};
-  std::vector<uint32_t> to_visit = {0};
+  
+  uint32_t min_indegree = UINT32_MAX;
+  uint32_t elem = 0;
+  std::list<uint32_t> to_visit = {};
+  for (size_t i = 0; i < cmd_count; i++) {
+    uint32_t indegree = 0;
+    for (size_t j = 0; j < cmd_count; j++)
+      if (edges[j][i]) indegree++;
+
+    if (indegree < min_indegree) {
+      min_indegree = indegree;
+      elem = i;
+    }
+  }
+
+  to_visit.push_back(elem);
+  enqueued[elem] = true;
+
   while (to_visit.size() > 0) {
     // find a node with in-degree 0, potentially problemmatic if cycle exists
-    auto it = to_visit.begin();
-    for (; it < to_visit.end(); it++) {
-      for (size_t i = 0; i < cmd_count; i++) {
-        if (!dequeued[i] && edges[i][*it]) goto loop;
+    min_indegree = UINT32_MAX;
+    auto tmp = to_visit.begin();
+
+    for (auto it = to_visit.begin(); it != to_visit.end(); it++) {
+      uint32_t indegree = 0;
+      for (size_t i = 0; i < cmd_count; i++)
+        if (!dequeued[i] && edges[i][*it]) indegree++;
+      if (indegree < min_indegree) {
+        min_indegree = indegree;
+        tmp = it;
       }
-      break;
-    loop:;
     }
 
-    auto elem = *it;
-    to_visit.erase(it);
+    elem = *tmp;
+    to_visit.erase(tmp);
     for (size_t i = 0; i < cmd_count; i++) {
       if (!enqueued[i] && edges[elem][i]) {
         enqueued[i] = true;
