@@ -34,44 +34,56 @@ QuorumCertOrderDummy::QuorumCertOrderDummy(const ReplicaConfig &config,
 const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
     const ReplicaConfig &config, size_t cmd_count) const {
   std::vector<uint32_t> ret;
-  if (cmd_count == 0)
-    return ret;
-    
+  if (cmd_count == 0) return ret;
+
   size_t edge_votes[cmd_count][cmd_count] = {};
   size_t vote_threshold = config.nreplicas - config.nmajority + 1;  // f + 1
 
   // create partial ordering graph
+  bool cmd_seen[cmd_count] = {};
   for (const auto &proposed : proposed_order) {
     auto &ordering = proposed.second;
-    for (auto it = ordering.begin(); it < ordering.end(); it++)
+    std::memset(cmd_seen, false, cmd_count);
+    for (auto it = ordering.begin(); it < ordering.end(); it++) {
+      cmd_seen[*it] = true;
       for (auto it2 = it + 1; it2 < ordering.end(); it2++)
         edge_votes[*it][*it2]++;
+    }
+    // assuming replica has not seen the command since it is still in air
+    for (size_t i = 0; i < cmd_count; i++) {
+      for (size_t j = 0; j < cmd_count; j++)
+        if (cmd_seen[i] && !cmd_seen[j])
+          edge_votes[i][j]++;
+        else if (!cmd_seen[i] && !cmd_seen[j] && i < j) {
+          edge_votes[i][j]++;
+          edge_votes[j][i]++;
+        }
+    }
   }
 
   bool edges[cmd_count][cmd_count] = {};
+  uint32_t indegree[cmd_count] = {};
   for (size_t i = 0; i < cmd_count; i++) {
     for (size_t j = 0; j < cmd_count; j++) {
       if (edge_votes[i][j] >= vote_threshold &&
           (edge_votes[i][j] > edge_votes[j][i] ||
-           (edge_votes[i][j] == edge_votes[j][i] && i < j)))
+           (edge_votes[i][j] == edge_votes[j][i] && i < j))) {
         edges[i][j] = true;
+        indegree[j]++;
+      }
     }
   }
 
   // find a topological ordering in the edge_votes graph
   bool enqueued[cmd_count] = {true};
   bool dequeued[cmd_count] = {};
-  
+
   uint32_t min_indegree = UINT32_MAX;
   uint32_t elem = 0;
   std::list<uint32_t> to_visit = {};
   for (size_t i = 0; i < cmd_count; i++) {
-    uint32_t indegree = 0;
-    for (size_t j = 0; j < cmd_count; j++)
-      if (edges[j][i]) indegree++;
-
-    if (indegree < min_indegree) {
-      min_indegree = indegree;
+    if (indegree[i] < min_indegree) {
+      min_indegree = indegree[i];
       elem = i;
     }
   }
@@ -85,17 +97,17 @@ const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
     auto tmp = to_visit.begin();
 
     for (auto it = to_visit.begin(); it != to_visit.end(); it++) {
-      uint32_t indegree = 0;
-      for (size_t i = 0; i < cmd_count; i++)
-        if (!dequeued[i] && edges[i][*it]) indegree++;
-      if (indegree < min_indegree) {
-        min_indegree = indegree;
+      if (indegree[*it] < min_indegree) {
+        min_indegree = indegree[*it];
         tmp = it;
       }
     }
 
     elem = *tmp;
     to_visit.erase(tmp);
+    for (size_t i = 0; i < cmd_count; i++)
+      if (edges[elem][i]) indegree[i]--;
+
     for (size_t i = 0; i < cmd_count; i++) {
       if (!enqueued[i] && edges[elem][i]) {
         enqueued[i] = true;
