@@ -75,7 +75,7 @@ const std::vector<uint32_t> QuorumCertOrderDummy::get_order(
   }
 
   // find a topological ordering in the edge_votes graph
-  bool enqueued[cmd_count] = {true};
+  bool enqueued[cmd_count] = {};
   bool dequeued[cmd_count] = {};
 
   uint32_t min_indegree = UINT32_MAX;
