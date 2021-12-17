@@ -1,0 +1,4 @@
+0:128.110.217.92:10000;20000	hotstuff.gen-sec0.conf
+1:128.110.217.86:10000;20000	hotstuff.gen-sec1.conf
+2:128.110.217.56:10000;20000	hotstuff.gen-sec2.conf
+3:128.110.217.55:10000;20000	hotstuff.gen-sec3.conf
