@@ -10,3 +10,7 @@
 9:128.110.217.49:10000;20000	hotstuff.gen-sec9.conf
 10:128.110.217.49:10001;20001	hotstuff.gen-sec10.conf
 11:128.110.217.112:10000;20000	hotstuff.gen-sec11.conf
+12:128.110.217.91:10000;20000	hotstuff.gen-sec12.conf
+13:128.110.217.125:10000;20000	hotstuff.gen-sec13.conf
+14:128.110.217.95:10000;20000	hotstuff.gen-sec14.conf
+15:128.110.218.30:10000;20000	hotstuff.gen-sec15.conf
