@@ -1,4 +1,4 @@
-Ordered Hotstu
+Ordered Hotstuff
 -----------
 This project forks from the vanilla Hotstuff BFT protocol at https://github.com/hot-stuff/libhotstuff.git. We add ordering semantics to it so that a faulty leader cannot dictate the ordering of commands within each batch. The basic idea is that, during the prepare phase, when each node decides whether or not to accept a batch, they additionally send the order in which they see the requests. The leader collects these orders and broadcast them to the followers, so that the followers can run some deterministic algorithm to figure out the actual order in which the commands should be executed in. The idea coincides with the 3-stage approach proposed in https://eprint.iacr.org/2020/269.pdf, and this is just one implementation on Hotstuff. 
 
